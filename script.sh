@@ -26,7 +26,7 @@ while true; do
     fi
 
     # Genera un nombre de archivo basado en la fecha y hora actual
-    FILENAME="$DEST_DIR/audio_$(date +'%Y%m%d_%H%M%S').wav"
+    FILENAME="$DEST_DIR/$(date +'%Y%m%d_%H%M%S').wav"
 
     # Notificación de inicio
     termux-notification --id "audio_recording" --title "Grabación en curso" --content "Grabando: $FILENAME (30 min)" --priority high
@@ -36,8 +36,8 @@ while true; do
     # Iniciar grabación en segundo plano
     termux-microphone-record -d "$FILENAME" &
 
-    # Dormir por 30 minutos mientras graba
-    sleep 1800
+    # Dormir por 10 segundos mientras graba
+    sleep 10
 
     # Terminar la grabación después de 30 minutos
     echo "$(date) - ⏹️ Deteniendo grabación..." | tee -a "$LOG_FILE"
