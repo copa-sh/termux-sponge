@@ -46,7 +46,7 @@ while true; do
     termux-microphone-record -d "$FILENAME" &
 
     # Dormir por 30 minutos mientras graba
-    sleep 1800
+    sleep 10
 
     echo "$(date) - ⏹️ Finalizando grabación..." | tee -a "$LOG_FILE"
     detener_grabacion
