@@ -17,16 +17,25 @@ mkdir -p "$DEST_DIR"
 # Archivo de logs
 LOG_FILE="$DEST_DIR/sponge.log"
 
-while true; do
-    # Detener cualquier grabación en curso antes de iniciar una nueva
+# Función para detener la grabación de forma graciosa
+detener_grabacion() {
     if pgrep -f termux-microphone-record > /dev/null; then
-        echo "$(date) - ⚠️ Grabación en curso detectada. Terminándola..." | tee -a "$LOG_FILE"
-        pkill -f termux-microphone-record
-        sleep 2
+        echo "$(date) - ⚠️ Grabación en curso detectada. Enviando SIGINT para detenerla..." | tee -a "$LOG_FILE"
+        pkill -SIGINT -f termux-microphone-record
+        # Esperar hasta que el proceso termine
+        while pgrep -f termux-microphone-record > /dev/null; do
+            sleep 1
+        done
+        echo "$(date) - ✔️ Grabación detenida." | tee -a "$LOG_FILE"
     fi
+}
+
+while true; do
+    # Intenta detener cualquier grabación en curso
+    detener_grabacion
 
     # Genera un nombre de archivo basado en la fecha y hora actual
-    FILENAME="$DEST_DIR/$(date +'%Y%m%d_%H%M%S').wav"
+    FILENAME="$DEST_DIR/audio_$(date +'%Y%m%d_%H%M%S').wav"
 
     # Notificación de inicio
     termux-notification --id "audio_recording" --title "Grabación en curso" --content "Grabando: $FILENAME (30 min)" --priority high
@@ -36,12 +45,14 @@ while true; do
     # Iniciar grabación en segundo plano
     termux-microphone-record -d "$FILENAME" &
 
-    # Dormir por 10 segundos mientras graba
-    sleep 10
+    # Dormir por 30 minutos mientras graba
+    sleep 1800
 
-    # Terminar la grabación después de 30 minutos
-    echo "$(date) - ⏹️ Deteniendo grabación..." | tee -a "$LOG_FILE"
-    pkill -f termux-microphone-record
+    echo "$(date) - ⏹️ Finalizando grabación..." | tee -a "$LOG_FILE"
+    detener_grabacion
+
+    # Forzamos la escritura en disco (opcional)
+    sync
 
     echo "$(date) - ✅ Grabación finalizada: $FILENAME" | tee -a "$LOG_FILE"
     
