@@ -18,9 +18,9 @@ mkdir -p "$DEST_DIR"
 LOG_FILE="$DEST_DIR/sponge.log"
 
 while true; do
-    # Detiene cualquier grabación en curso antes de iniciar una nueva
+    # Detener cualquier grabación en curso antes de iniciar una nueva
     if pgrep -f termux-microphone-record > /dev/null; then
-        echo "$(date) - ⚠️ Grabación detectada. Matando proceso..." | tee -a "$LOG_FILE"
+        echo "$(date) - ⚠️ Grabación en curso detectada. Terminándola..." | tee -a "$LOG_FILE"
         pkill -f termux-microphone-record
         sleep 2
     fi
@@ -33,15 +33,15 @@ while true; do
 
     echo "$(date) - 🎙️ Iniciando grabación: $FILENAME" | tee -a "$LOG_FILE"
 
-    # Intenta grabar y captura errores
-    {
-        timeout 1800 termux-microphone-record -d "$FILENAME"
-    } || {
-        echo "$(date) - ❌ Error al grabar. Intentando de nuevo..." | tee -a "$LOG_FILE"
-        pkill -f termux-microphone-record
-        sleep 2
-        continue
-    }
+    # Iniciar grabación en segundo plano
+    termux-microphone-record -d "$FILENAME" &
+
+    # Dormir por 30 minutos mientras graba
+    sleep 1800
+
+    # Terminar la grabación después de 30 minutos
+    echo "$(date) - ⏹️ Deteniendo grabación..." | tee -a "$LOG_FILE"
+    pkill -f termux-microphone-record
 
     echo "$(date) - ✅ Grabación finalizada: $FILENAME" | tee -a "$LOG_FILE"
     
