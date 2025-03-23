@@ -44,7 +44,7 @@ while true; do
     termux-microphone-record -d "$FILENAME" &
     
     # Espera 10 minutos (600 segundos)
-    sleep 600
+    sleep 60
 
     echo "$(date) - ⏹️ Finalizando grabación: $FILENAME" | tee -a "$LOG_FILE"
     # Forzar finalización de cualquier grabación en curso
@@ -57,7 +57,7 @@ while true; do
     last_files+=("$FILENAME")
     
     # Si hay más de 3 archivos (más de 30 minutos), se elimina el más antiguo
-    if [ ${#last_files[@]} -gt 3 ]; then
+    if [ ${#last_files[@]} -gt 30 ]; then
         echo "$(date) - Eliminando archivo antiguo: ${last_files[0]}" | tee -a "$LOG_FILE"
         rm -f "${last_files[0]}"
         # Se remueve el primer elemento del arreglo
