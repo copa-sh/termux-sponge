@@ -10,71 +10,70 @@ fi
 # Asegurar permisos de almacenamiento
 termux-setup-storage
 
-# Directorios para grabaciones temporales y archivo
-DEST_DIR="/storage/emulated/0/Sponge"
-ARCHIVE_DIR="/storage/emulated/0/SpongeArchive"
-mkdir -p "$DEST_DIR"
+# Directorio para la grabación temporal del fragmento actual
+# (podríamos grabar directamente en ARCHIVE_DIR, pero así es más limpio por si algo falla)
+TEMP_RECORD_DIR="/storage/emulated/0/SpongeTempRec"
+# Directorio donde se almacenarán permanentemente todas las grabaciones
+ARCHIVE_DIR="/storage/emulated/0/SpongeArchiveAll" # Nombre ligeramente cambiado para indicar que guarda todo
+
+mkdir -p "$TEMP_RECORD_DIR"
 mkdir -p "$ARCHIVE_DIR"
 
-# Archivo de logs
-LOG_FILE="$DEST_DIR/sponge.log"
+# Archivo de logs (lo pondremos en el directorio de archivo)
+LOG_FILE="$ARCHIVE_DIR/sponge_always_archive.log"
 
-# Bandera para almacenar archivos
-store_flag=0
-
-# Manejador de señal SIGUSR1: cuando se reciba, se marca para almacenar la última media hora
-handle_sigusr1() {
-    echo "$(date) - Señal SIGUSR1 recibida: se almacenarán los archivos de los últimos 30 minutos." | tee -a "$LOG_FILE"
-    store_flag=1
-}
-trap 'handle_sigusr1' SIGUSR1
-
-# Lista para llevar el registro de los últimos 3 archivos (10 minutos c/u = 30 min en total)
-declare -a last_files=()
+echo "$(date) - Script de grabación y archivado continuo iniciado." | tee -a "$LOG_FILE"
+echo "$(date) - Todos los fragmentos grabados se guardarán en $ARCHIVE_DIR." | tee -a "$LOG_FILE"
+echo "$(date) - ADVERTENCIA: Esto podría llenar el almacenamiento con el tiempo." | tee -a "$LOG_FILE"
 
 while true; do
     # Genera un nombre de archivo basado en la fecha y hora actual
-    FILENAME="$DEST_DIR/audio_$(date +'%Y%m%d_%H%M%S').wav"
+    TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
+    TEMP_FILENAME="audio_temp_$TIMESTAMP.wav" # Nombre para el archivo temporal
+    FULL_TEMP_PATH="$TEMP_RECORD_DIR/$TEMP_FILENAME"
 
-    # Notificación de inicio de grabación
-    termux-notification --id "audio_recording" --title "Grabación en curso" --content "Grabando: $FILENAME (10 min)" --priority high
-    echo "$(date) - 🎙️ Iniciando grabación: $FILENAME" | tee -a "$LOG_FILE"
+    # Notificación de inicio de grabación (ajusta "(1 min)" si cambias el sleep)
+    termux-notification --id "audio_recording" --title "Grabando y Archivando" --content "Grabando: $TEMP_FILENAME (1 min)" --priority high
+    echo "$(date) - 🎙️ Iniciando grabación: $FULL_TEMP_PATH" | tee -a "$LOG_FILE"
 
-    # Inicia la grabación en segundo plano
-    termux-microphone-record -d "$FILENAME" &
-    
-    # Espera 10 minutos (600 segundos)
+    # Inicia la grabación en segundo plano usando -f para el archivo
+    termux-microphone-record -f "$FULL_TEMP_PATH" &
+    REC_PID=$! # Captura el PID del proceso de grabación
+
+    # Espera 1 minuto (60 segundos). Puedes ajustar esto para fragmentos más largos o cortos.
     sleep 60
 
-    echo "$(date) - ⏹️ Finalizando grabación: $FILENAME" | tee -a "$LOG_FILE"
-    # Forzar finalización de cualquier grabación en curso
-    pkill -SIGINT -f termux-microphone-record 2>/dev/null
-    sleep 2
-    sync
-    termux-notification --id "audio_recording" --title "Grabación finalizada" --content "Archivo guardado: $FILENAME" --priority high
-
-    # Se añade el archivo a la lista de los últimos grabados
-    last_files+=("$FILENAME")
-    
-    # Si hay más de 3 archivos (más de 30 minutos), se elimina el más antiguo
-    if [ ${#last_files[@]} -gt 30 ]; then
-        echo "$(date) - Eliminando archivo antiguo: ${last_files[0]}" | tee -a "$LOG_FILE"
-        rm -f "${last_files[0]}"
-        # Se remueve el primer elemento del arreglo
-        last_files=("${last_files[@]:1}")
+    echo "$(date) - ⏹️ Finalizando grabación: $FULL_TEMP_PATH" | tee -a "$LOG_FILE"
+    # Intenta finalizar la grabación específica por su PID
+    if ps -p $REC_PID > /dev/null; then # Verifica si el proceso aún existe
+       kill -SIGINT $REC_PID
+       wait $REC_PID 2>/dev/null # Espera a que termine limpiamente
+    else
+       echo "$(date) - Proceso de grabación $REC_PID no encontrado. Pudo haber terminado o fallado." | tee -a "$LOG_FILE"
+       # Si la detención por PID falla consistentemente, podrías recurrir a pkill,
+       # pero es menos preciso:
+       # pkill -SIGINT -f termux-microphone-record 2>/dev/null
     fi
+    sleep 2 # Pequeña pausa para asegurar que el archivo se escriba completamente
+    sync    # Asegurar que los datos se escriban en disco
 
-    # Si se recibió la señal para almacenar, se mueven los archivos a ARCHIVE_DIR
-    if [ $store_flag -eq 1 ]; then
-        echo "$(date) - Almacenando los archivos de los últimos 30 minutos..." | tee -a "$LOG_FILE"
-        for file in "${last_files[@]}"; do
-            if [ -f "$file" ]; then
-                mv "$file" "$ARCHIVE_DIR"
-                echo "$(date) - Archivo almacenado: $(basename "$file")" | tee -a "$LOG_FILE"
-            fi
-        done
-        # Se limpia la lista y se resetea la bandera
-        last_files=()
-        store_flag=0
+    # Mover el archivo al directorio de archivo permanente
+    # Verifica primero si el archivo temporal fue creado correctamente
+    if [ -f "$FULL_TEMP_PATH" ]; then
+        ARCHIVED_FILENAME="audio_archive_$TIMESTAMP.wav" # Nombre para el archivo archivado
+        FULL_ARCHIVE_PATH="$ARCHIVE_DIR/$ARCHIVED_FILENAME"
+
+        mv "$FULL_TEMP_PATH" "$FULL_ARCHIVE_PATH"
+        
+        if [ $? -eq 0 ]; then # Verifica si el comando mv tuvo éxito
+            echo "$(date) - ✅ Archivo almacenado en: $FULL_ARCHIVE_PATH" | tee -a "$LOG_FILE"
+            termux-notification --id "audio_recording_archived" --title "Grabación Archivada" --content "Guardado: $ARCHIVED_FILENAME" --priority high
+        else
+            echo "$(date) - ⚠️ Error al mover '$FULL_TEMP_PATH' a '$FULL_ARCHIVE_PATH'." | tee -a "$LOG_FILE"
+            termux-notification --id "audio_recording_error" --title "Error de Archivado" --content "Fallo al mover: $(basename "$FULL_TEMP_PATH")" --priority high
+        fi
+    else
+        echo "$(date) - ⚠️ Archivo temporal '$FULL_TEMP_PATH' no encontrado. La grabación pudo haber fallado." | tee -a "$LOG_FILE"
+        termux-notification --id "audio_recording_error" --title "Error de Grabación" --content "Fallo al crear: $(basename "$FULL_TEMP_PATH")" --priority high
     fi
 done
