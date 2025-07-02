@@ -35,6 +35,9 @@ check_dependencies() {
 # Verificar dependencias al inicio
 check_dependencies
 
+# Detener grabación
+termux-microphone-record -q
+
 while true; do
     # Generar nombre de archivo con formato de fecha
     filename=$(date +"%Y%m%d_%H%M%S")
