@@ -2,11 +2,7 @@
 
 # Script para grabar audio cada 15 minutos en formato Ymd_His.mp3
 
-
-# Verificar dependencias al inicio
-check_dependencies
-
-# Detener grabación
+# Detener cualquier grabación anterior al iniciar
 termux-microphone-record -q
 
 while true; do
@@ -15,7 +11,7 @@ while true; do
     
     echo "Iniciando grabación: ${filename}.mp3"
     
-    # Iniciar grabación
+    # Iniciar grabación en formato amr
     termux-microphone-record -e awr_wide -f "${filename}.amr" &
     
     # Esperar 15 minutos (900 segundos)
