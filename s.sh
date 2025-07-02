@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os
+import os, sys
 import subprocess
 from datetime import datetime, timedelta
 from flask import Flask, request, send_file, render_template_string
@@ -105,4 +105,4 @@ def download_audio():
 
 if __name__ == '__main__':
     # Escucha en todas las interfaces de red en el puerto 8080
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=sys.argv[1] if len(sys.argv)>1 else 8080, debug=True)
