@@ -1,104 +1,229 @@
 #!/bin/bash
 
-# Verifica si Termux-API está instalado, si no, lo instala
-if! command -v termux-microphone-record &> /dev/null; then
-    echo "Instalando dependencias (termux-api, coreutils)..."
-    pkg update -y
-    pkg install -y termux-api coreutils
-fi
+# Script para grabar audio con termux-microphone-record
+# Autor: Script generado para Termux
+# Uso: ./grabar_audio.sh [duración_en_segundos] [nombre_archivo]
 
-# Asegurar permisos de almacenamiento
-termux-setup-storage
+# Configuración por defecto
+DURACION_DEFAULT=10
+DIRECTORIO_GRABACIONES="$HOME/Grabaciones"
+FORMATO="wav"  # Opciones: wav, m4a, 3gp
+LIMITE_BITRATE=128000
 
-# --- Configuración ---
-DURATION_SECONDS=60      # Duración de cada segmento en segundos
-ENCODER_TYPE="opus"      # Codificador: "opus", "aac", "amr_wb", "amr_nb"
-OUTPUT_EXTENSION="opus"  # Extensión del archivo, debe coincidir con el codificador
-TARGET_BITRATE="64"      # Tasa de bits en kbps (ej. para Opus)
-TARGET_SAMPLERATE="24000" # Frecuencia de muestreo en Hz (ej. para Opus, 24kHz es común)
-TARGET_CHANNELS="1"      # Canales: 1 para mono
-
-# Directorios
-BASE_STORAGE_PATH="/storage/emulated/0" # Ruta base del almacenamiento
-TEMP_RECORD_DIR="${BASE_STORAGE_PATH}/AudioTemp_${OUTPUT_EXTENSION}"
-ARCHIVE_DIR="${BASE_STORAGE_PATH}/AudioArchive_${OUTPUT_EXTENSION}"
-
-mkdir -p "$TEMP_RECORD_DIR"
-mkdir -p "$ARCHIVE_DIR"
-
-LOG_FILE="$ARCHIVE_DIR/recording_log_${OUTPUT_EXTENSION}.log"
-
-# Función para registrar mensajes
-log_msg() {
-    echo "$(date +'%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
+# Función para mostrar ayuda
+mostrar_ayuda() {
+    echo "=== GRABADOR DE AUDIO TERMUX ==="
+    echo "Uso: $0 [opciones]"
+    echo ""
+    echo "Opciones:"
+    echo "  -d, --duracion SEGUNDOS    Duración de la grabación (default: $DURACION_DEFAULT)"
+    echo "  -f, --archivo NOMBRE       Nombre del archivo (sin extensión)"
+    echo "  -o, --output DIRECTORIO    Directorio de salida (default: $DIRECTORIO_GRABACIONES)"
+    echo "  -r, --formato FORMATO      Formato: wav, m4a, 3gp (default: $FORMATO)"
+    echo "  -b, --bitrate BITRATE      Bitrate de audio (default: $LIMITE_BITRATE)"
+    echo "  -i, --interactivo          Modo interactivo"
+    echo "  -l, --listar              Listar grabaciones existentes"
+    echo "  -h, --help                Mostrar esta ayuda"
+    echo ""
+    echo "Ejemplos:"
+    echo "  $0 -d 30 -f mi_grabacion"
+    echo "  $0 --interactivo"
+    echo "  $0 -d 60 -f reunion -r m4a"
 }
 
-log_msg "Script de grabación iniciado. Segmentos de ${DURATION_SECONDS}s. Encoder: ${ENCODER_TYPE}."
-log_msg "Archivos temporales en: $TEMP_RECORD_DIR"
-log_msg "Archivos archivados en: $ARCHIVE_DIR"
-log_msg "ADVERTENCIA: Esto podría llenar el almacenamiento con el tiempo."
+# Función para crear directorio de grabaciones
+crear_directorio() {
+    if [ ! -d "$DIRECTORIO_GRABACIONES" ]; then
+        mkdir -p "$DIRECTORIO_GRABACIONES"
+        echo "✓ Directorio creado: $DIRECTORIO_GRABACIONES"
+    fi
+}
 
-while true; do
-    TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
-    TEMP_FILENAME="audio_temp_${TIMESTAMP}.${OUTPUT_EXTENSION}"
-    FULL_TEMP_PATH="$TEMP_RECORD_DIR/$TEMP_FILENAME"
+# Función para generar nombre de archivo único
+generar_nombre_archivo() {
+    local base_name=${1:-"grabacion"}
+    local timestamp=$(date +"%Y%m%d_%H%M%S")
+    echo "${base_name}_${timestamp}"
+}
 
-    termux-notification --id "audio_recording_status" \
-                        --title "Grabando (${DURATION_SECONDS}s, ${ENCODER_TYPE})" \
-                        --content "Archivo: $TEMP_FILENAME" \
-                        --priority high
+# Función para validar formato
+validar_formato() {
+    case $1 in
+        wav|m4a|3gp)
+            return 0
+            ;;
+        *)
+            echo "❌ Formato no válido: $1"
+            echo "Formatos soportados: wav, m4a, 3gp"
+            return 1
+            ;;
+    esac
+}
 
-    log_msg "🎙️ Iniciando grabación: $FULL_TEMP_PATH (Dur: ${DURATION_SECONDS}s, Enc: ${ENCODER_TYPE}, ${TARGET_BITRATE}kbps, ${TARGET_SAMPLERATE}Hz, Ch: ${TARGET_CHANNELS})"
-
-    termux-microphone-record -f "$FULL_TEMP_PATH" \
-                             -l "$DURATION_SECONDS" \
-                             -e "$ENCODER_TYPE" \
-                             -b "$TARGET_BITRATE" \
-                             -r "$TARGET_SAMPLERATE" \
-                             -c "$TARGET_CHANNELS"
-    
-    EXIT_CODE=$?
-    log_msg "⏹️ Grabación finalizada. Código de salida: $EXIT_CODE para $TEMP_FILENAME"
-
-    # Sincronizar para asegurar que los datos se escriban en disco (mejores prácticas, aunque el impacto varía)
-    sync
-
-    if; then
-        if; then # Verificar si el archivo no está vacío
-            ARCHIVED_FILENAME="audio_archive_${TIMESTAMP}.${OUTPUT_EXTENSION}"
-            FULL_ARCHIVE_PATH="$ARCHIVE_DIR/$ARCHIVED_FILENAME"
-
-            mv "$FULL_TEMP_PATH" "$FULL_ARCHIVE_PATH"
-            
-            if [ $? -eq 0 ]; then
-                log_msg "✅ Archivo ${OUTPUT_EXTENSION} almacenado en: $FULL_ARCHIVE_PATH"
-                termux-notification --id "audio_archived_ok" \
-                                    --title "Grabación Archivada" \
-                                    --content "Guardado: $ARCHIVED_FILENAME" \
-                                    --priority default
-            else
-                log_msg "⚠️ Error al mover '$FULL_TEMP_PATH' a '$FULL_ARCHIVE_PATH'."
-                termux-notification --id "audio_move_error" \
-                                    --title "Error de Archivado" \
-                                    --content "Fallo al mover: $(basename "$FULL_TEMP_PATH")" \
-                                    --priority high
-            fi
-        else
-            log_msg "⚠️ Archivo temporal '$FULL_TEMP_PATH' está vacío. Eliminando."
-            rm "$FULL_TEMP_PATH"
-            termux-notification --id "audio_empty_error" \
-                                --title "Error de Grabación" \
-                                --content "Archivo vacío: $(basename "$FULL_TEMP_PATH")" \
-                                --priority high
-        fi
+# Función para listar grabaciones
+listar_grabaciones() {
+    echo "=== GRABACIONES EXISTENTES ==="
+    if [ -d "$DIRECTORIO_GRABACIONES" ] && [ "$(ls -A $DIRECTORIO_GRABACIONES 2>/dev/null)" ]; then
+        ls -lh "$DIRECTORIO_GRABACIONES"/*.{wav,m4a,3gp} 2>/dev/null | while read -r line; do
+            echo "$line"
+        done
     else
-        log_msg "⚠️ Archivo temporal '$FULL_TEMP_PATH' no encontrado. La grabación pudo haber fallado (Código de salida: $EXIT_CODE)."
-        termux-notification --id "audio_missing_error" \
-                            --title "Error de Grabación" \
-                            --content "Fallo al crear: $(basename "$FULL_TEMP_PATH") (Salida: $EXIT_CODE)" \
-                            --priority high
+        echo "No se encontraron grabaciones en $DIRECTORIO_GRABACIONES"
+    fi
+}
+
+# Función para el modo interactivo
+modo_interactivo() {
+    echo "=== MODO INTERACTIVO ==="
+    
+    # Solicitar duración
+    read -p "Duración en segundos (default: $DURACION_DEFAULT): " input_duracion
+    DURACION=${input_duracion:-$DURACION_DEFAULT}
+    
+    # Solicitar nombre
+    read -p "Nombre del archivo (sin extensión): " input_nombre
+    if [ -z "$input_nombre" ]; then
+        NOMBRE_ARCHIVO=$(generar_nombre_archivo)
+    else
+        NOMBRE_ARCHIVO="$input_nombre"
     fi
     
-    # Pausa opcional entre grabaciones
-    sleep 1
+    # Solicitar formato
+    echo "Formatos disponibles: wav (default), m4a, 3gp"
+    read -p "Formato: " input_formato
+    FORMATO=${input_formato:-wav}
+    
+    if ! validar_formato "$FORMATO"; then
+        exit 1
+    fi
+}
+
+# Función principal de grabación
+grabar_audio() {
+    local duracion=$1
+    local nombre_archivo=$2
+    local formato=$3
+    local directorio=$4
+    local bitrate=$5
+    
+    local archivo_completo="$directorio/${nombre_archivo}.$formato"
+    
+    echo "=== INICIANDO GRABACIÓN ==="
+    echo "📁 Directorio: $directorio"
+    echo "📄 Archivo: ${nombre_archivo}.$formato"
+    echo "⏱️  Duración: $duracion segundos"
+    echo "🎵 Formato: $formato"
+    echo "🎚️  Bitrate: $bitrate"
+    echo ""
+    
+    # Verificar que termux-microphone-record esté disponible
+    if ! command -v termux-microphone-record &> /dev/null; then
+        echo "❌ Error: termux-microphone-record no está instalado"
+        echo "Instálalo con: pkg install termux-api"
+        exit 1
+    fi
+    
+    # Cuenta regresiva
+    for i in 3 2 1; do
+        echo "Iniciando en $i..."
+        sleep 1
+    done
+    
+    echo "🔴 GRABANDO... (presiona Ctrl+C para detener manualmente)"
+    
+    # Ejecutar la grabación
+    if termux-microphone-record -f "$archivo_completo" -l $bitrate -d $duracion; then
+        echo ""
+        echo "✅ Grabación completada exitosamente!"
+        echo "📄 Archivo guardado: $archivo_completo"
+        
+        # Mostrar información del archivo
+        if [ -f "$archivo_completo" ]; then
+            local tamaño=$(du -h "$archivo_completo" | cut -f1)
+            echo "📊 Tamaño: $tamaño"
+        fi
+    else
+        echo ""
+        echo "❌ Error durante la grabación"
+        exit 1
+    fi
+}
+
+# Procesar argumentos de línea de comandos
+DURACION=$DURACION_DEFAULT
+NOMBRE_ARCHIVO=""
+INTERACTIVO=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -d|--duracion)
+            DURACION="$2"
+            shift 2
+            ;;
+        -f|--archivo)
+            NOMBRE_ARCHIVO="$2"
+            shift 2
+            ;;
+        -o|--output)
+            DIRECTORIO_GRABACIONES="$2"
+            shift 2
+            ;;
+        -r|--formato)
+            FORMATO="$2"
+            shift 2
+            ;;
+        -b|--bitrate)
+            LIMITE_BITRATE="$2"
+            shift 2
+            ;;
+        -i|--interactivo)
+            INTERACTIVO=true
+            shift
+            ;;
+        -l|--listar)
+            crear_directorio
+            listar_grabaciones
+            exit 0
+            ;;
+        -h|--help)
+            mostrar_ayuda
+            exit 0
+            ;;
+        *)
+            echo "Opción desconocida: $1"
+            mostrar_ayuda
+            exit 1
+            ;;
+    esac
 done
+
+# Crear directorio de grabaciones
+crear_directorio
+
+# Modo interactivo
+if [ "$INTERACTIVO" = true ]; then
+    modo_interactivo
+fi
+
+# Validar formato
+if ! validar_formato "$FORMATO"; then
+    exit 1
+fi
+
+# Generar nombre de archivo si no se proporcionó
+if [ -z "$NOMBRE_ARCHIVO" ]; then
+    NOMBRE_ARCHIVO=$(generar_nombre_archivo)
+fi
+
+# Validar duración
+if ! [[ "$DURACION" =~ ^[0-9]+$ ]] || [ "$DURACION" -le 0 ]; then
+    echo "❌ Error: La duración debe ser un número positivo"
+    exit 1
+fi
+
+# Iniciar grabación
+grabar_audio "$DURACION" "$NOMBRE_ARCHIVO" "$FORMATO" "$DIRECTORIO_GRABACIONES" "$LIMITE_BITRATE"
+
+echo ""
+echo "=== GRABACIÓN FINALIZADA ==="
+echo "Para reproducir: termux-media-player play '$DIRECTORIO_GRABACIONES/${NOMBRE_ARCHIVO}.$FORMATO'"
