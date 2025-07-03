@@ -9,7 +9,7 @@ while true; do
     # Generar nombre de archivo con formato de fecha
     filename=$(date +"%Y%m%d_%H%M%S")
     
-    echo "Iniciando grabación: ${filename}.mp3"
+    echo "Iniciando grabación: ${filename}.wav
     
     # Iniciar grabación en formato wav
     termux-microphone-record -f "${filename}.wav" -r 48000 -c 1 &
@@ -23,7 +23,7 @@ while true; do
     # Esperar un poco para asegurar que se detenga
     sleep 2
     
-    echo "Grabación completada: ${filename}.mp3"
+    echo "Grabación completada: ${filename}.wav"
     echo "Esperando para próxima grabación..."
     echo "----------------------------------------"
 done
