@@ -105,4 +105,4 @@ def download_audio():
 
 if __name__ == '__main__':
     # Escucha en todas las interfaces de red en el puerto 8080
-    app.run(host='0.0.0.0', port=sys.argv[1] if len(sys.argv)>1 else 8080, debug=True)
+    app.run(host='localhost', port=sys.argv[1] if len(sys.argv)>1 else 8080, debug=True)
