@@ -11,8 +11,8 @@ while true; do
     
     echo "Iniciando grabación: ${filename}.mp3"
     
-    # Iniciar grabación en formato amr
-    termux-microphone-record -e awr_wide -f "${filename}.amr" &
+    # Iniciar grabación en formato wav
+    termux-microphone-record -f "${filename}.wav" -r 48000 -c 1 &
     
     # Esperar 15 minutos (900 segundos)
     sleep 900
@@ -22,14 +22,6 @@ while true; do
     
     # Esperar un poco para asegurar que se detenga
     sleep 2
-    
-    # Convertir a mp3
-    ffmpeg -i "${filename}.amr" "${filename}.mp3"
-    
-    # Eliminar archivo temporal amr si existe
-    if [ -f "${filename}.amr" ]; then
-        rm "${filename}.amr"
-    fi
     
     echo "Grabación completada: ${filename}.mp3"
     echo "Esperando para próxima grabación..."
