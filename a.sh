@@ -22,6 +22,9 @@ while true; do
     
     # Esperar un poco para asegurar que se detenga
     sleep 2
+
+    # Eliminar archivos .wav de más de 24 horas
+    find . -name "*.wav" -type f -mtime +1 -delete
     
     echo "Grabación completada: ${filename}.wav"
     echo "Esperando para próxima grabación..."
