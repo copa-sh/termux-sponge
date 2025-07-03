@@ -56,9 +56,9 @@ def download_audio():
     # 1. Encontrar los archivos relevantes
     relevant_files = []
     try:
-        all_files = sorted([f for f in os.listdir(AUDIO_DIR) if f.endswith('.mp3')])
+        all_files = sorted([f for f in os.listdir(AUDIO_DIR) if f.endswith('.wav')])
         for filename in all_files:
-            # Extraer fecha del nombre de archivo (formato: YYYYMMDD_HHMMSS.mp3)
+            # Extraer fecha del nombre de archivo (formato: YYYYMMDD_HHMMSS.wav)
             file_timestamp_str = filename.split('.')[0]
             file_time = datetime.strptime(file_timestamp_str, '%Y%m%d_%H%M%S')
             
@@ -76,7 +76,7 @@ def download_audio():
         return send_file(os.path.join(AUDIO_DIR, relevant_files[0]), as_attachment=True)
 
     # 3. Combinar múltiples archivos con ffmpeg
-    output_filename = f"combined_{now.strftime('%Y%m%d_%H%M%S')}.mp3"
+    output_filename = f"combined_{now.strftime('%Y%m%d_%H%M%S')}.wav"
     list_filename = "concat_list.txt"
 
     # Crear lista de archivos para ffmpeg
