@@ -58,6 +58,8 @@ def download_audio():
     try:
         all_files = sorted([f for f in os.listdir(AUDIO_DIR) if f.endswith('.wav')])
         for filename in all_files:
+            if filename.startswith("comb"): 
+                continue
             # Extraer fecha del nombre de archivo (formato: YYYYMMDD_HHMMSS.wav)
             file_timestamp_str = filename.split('.')[0]
             file_time = datetime.strptime(file_timestamp_str, '%Y%m%d_%H%M%S')
