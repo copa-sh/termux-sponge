@@ -10,7 +10,7 @@ while true; do
     filename=$(date +"%Y%m%d_%H%M%S")
     
     # Iniciar grabación en formato wav
-    termux-microphone-record -f "${filename}.wav" -r 48000 -c 1 &
+    termux-microphone-record -f "storage/movies/${filename}.wav" -r 48000 -c 1 &
     
     # Esperar 15 minutos (900 segundos)
     sleep 120
