@@ -5,6 +5,9 @@
 # Detener cualquier grabación anterior al iniciar
 termux-microphone-record -q
 
+echo "Init loop."
+echo
+
 while true; do
     # Generar nombre de archivo con formato de fecha
     filename=$(date +"%Y%m%d_%H%M%S")
