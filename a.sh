@@ -9,8 +9,6 @@ while true; do
     # Generar nombre de archivo con formato de fecha
     filename=$(date +"%Y%m%d_%H%M%S")
     
-    echo "Iniciando grabación: ${filename}.wav"
-    
     # Iniciar grabación en formato wav
     termux-microphone-record -f "${filename}.wav" -r 48000 -c 1 &
     
@@ -26,7 +24,6 @@ while true; do
     # Eliminar archivos .wav de más de 24 horas
     find . -name "*.wav" -type f -mtime +1 -delete
     
-    echo "Grabación completada: ${filename}.wav"
-    echo "Esperando para próxima grabación..."
+    echo "Ok: ${filename}"
     echo "----------------------------------------"
 done
